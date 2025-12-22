@@ -4,6 +4,7 @@ import com.example.demo.dto.JwtResponse;
 import com.example.demo.dto.LoginRequest;
 import com.example.demo.dto.RegisterRequest;
 import com.example.demo.entity.User;
+import com.example.demo.entity.UserRole; // Import the Enum!
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +21,6 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    // Constructor Injection (Mandatory for your tests)
     public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -30,14 +30,19 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
     public String register(@RequestBody RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        // Fix: Use getEmail()
+        if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already taken!");
         }
         User user = new User();
-        user.setFullName(request.fullName());
-        user.setEmail(request.email());
-        user.setPassword(passwordEncoder.encode(request.password()));
-        user.setRole("MONITOR"); // Default role
+        // Fix: Use getFullName(), getEmail(), getPassword()
+        user.setFullName(request.getFullName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        
+        // Fix: Set Enum instead of String
+        user.setRole(UserRole.MONITOR); 
+        
         userRepository.save(user);
         return "User registered successfully!";
     }
@@ -45,14 +50,18 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "Login and get JWT Token")
     public JwtResponse login(@RequestBody LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        // Fix: Use getEmail()
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+        // Fix: Use getPassword()
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("Invalid credentials");
         }
 
         String token = jwtUtil.generateToken(user.getEmail());
-        return new JwtResponse(token, user.getEmail(), user.getRole());
+        
+        // Fix: Convert Enum to String for response
+        return new JwtResponse(token, user.getEmail(), user.getRole().toString());
     }
 }
