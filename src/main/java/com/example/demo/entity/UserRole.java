@@ -1,7 +1,7 @@
 package com.example.demo.entity;
 
 public enum UserRole {
-    ADMIN,
     MONITOR,
+    ADMIN,
     QUALITY_AUDITOR
 }
