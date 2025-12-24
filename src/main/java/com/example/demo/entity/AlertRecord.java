@@ -5,74 +5,28 @@ import java.time.LocalDateTime;
 
 @Entity
 public class AlertRecord {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private Long shipmentId;
     private Long breachId;
+    private Long shipmentId;
+    private Boolean acknowledged;
+    private LocalDateTime sentAt;
 
-    private String alertType;
-
-    @Column(length = 1000)
-    private String message;
-
-    @Column(nullable = false)
-    private LocalDateTime sentAt = LocalDateTime.now();
-
-    @Column(nullable = false)
-    private Boolean acknowledged = false;
-
-    public AlertRecord() {
+    @PrePersist
+    public void prePersist() {
+        if (this.acknowledged == null) this.acknowledged = false;
+        if (this.sentAt == null) this.sentAt = LocalDateTime.now();
     }
 
-    // getters and setters
-    public Long getId() {
-        return id;
-    }
-
-    public Long getShipmentId() {
-        return shipmentId;
-    }
-
-    public void setShipmentId(Long shipmentId) {
-        this.shipmentId = shipmentId;
-    }
-
-    public Long getBreachId() {
-        return breachId;
-    }
-
-    public void setBreachId(Long breachId) {
-        this.breachId = breachId;
-    }
-
-    public String getAlertType() {
-        return alertType;
-    }
-
-    public void setAlertType(String alertType) {
-        this.alertType = alertType;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public LocalDateTime getSentAt() {
-        return sentAt;
-    }
-
-    public Boolean getAcknowledged() {
-        return acknowledged;
-    }
-
-    public void setAcknowledged(Boolean acknowledged) {
-        this.acknowledged = acknowledged;
-    }
+    // Getters/Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getBreachId() { return breachId; }
+    public void setBreachId(Long id) { this.breachId = id; }
+    public Long getShipmentId() { return shipmentId; }
+    public void setShipmentId(Long id) { this.shipmentId = id; }
+    public Boolean getAcknowledged() { return acknowledged; }
+    public void setAcknowledged(Boolean val) { this.acknowledged = val; }
+    public LocalDateTime getSentAt() { return sentAt; }
+    public void setSentAt(LocalDateTime val) { this.sentAt = val; }
 }

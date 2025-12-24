@@ -6,14 +6,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface TemperatureRuleRepository extends JpaRepository<TemperatureRule, Long> {
-    
-    // Custom method to find active rules
     List<TemperatureRule> findByActiveTrue();
 
-    // Custom query to find the specific rule for a product type on a given date
-    @Query("SELECT r FROM TemperatureRule r WHERE r.productType = :productType " +
-           "AND :date BETWEEN r.effectiveFrom AND r.effectiveTo")
-    TemperatureRule findApplicableRule(@Param("productType") String productType, @Param("date") LocalDate date);
+    // Required by Test 90
+    @Query("SELECT r FROM TemperatureRule r WHERE r.productType = :pType AND :date BETWEEN r.effectiveFrom AND r.effectiveTo")
+    Optional<TemperatureRule> findApplicableRule(@Param("pType") String pType, @Param("date") LocalDate date);
 }
