@@ -1,67 +1,44 @@
 package com.example.demo.controller;
 
-import com.example.demo.dto.JwtResponse;
-import com.example.demo.dto.LoginRequest;
-import com.example.demo.dto.RegisterRequest;
+import com.example.demo.dto.*;
 import com.example.demo.entity.User;
-import com.example.demo.entity.UserRole; // Import the Enum!
-import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtUtil;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.example.demo.service.UserService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
-@Tag(name = "Authentication", description = "Register and Login endpoints")
 public class AuthController {
-
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserService userService;
+    private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
+    public AuthController(UserService userService, AuthenticationManager authManager, JwtUtil jwtUtil) {
+        this.userService = userService;
+        this.authenticationManager = authManager;
         this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Register a new user")
-    public String register(@RequestBody RegisterRequest request) {
-        // Fix: Use getEmail()
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already taken!");
-        }
-        User user = new User();
-        // Fix: Use getFullName(), getEmail(), getPassword()
-        user.setFullName(request.getFullName());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+    public ResponseEntity<JwtResponse> register(@RequestBody RegisterRequest req) {
+        User u = new User();
+        u.setFullName(req.getFullName());
+        u.setEmail(req.getEmail());
+        u.setPassword(req.getPassword());
+        User saved = userService.registerUser(u);
         
-        // Fix: Set Enum instead of String
-        user.setRole(UserRole.MONITOR); 
-        
-        userRepository.save(user);
-        return "User registered successfully!";
+        String token = jwtUtil.generateToken(saved.getId(), saved.getEmail(), saved.getRole());
+        return ResponseEntity.ok(new JwtResponse(token, saved.getEmail(), saved.getRole()));
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Login and get JWT Token")
-    public JwtResponse login(@RequestBody LoginRequest request) {
-        // Fix: Use getEmail()
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Fix: Use getPassword()
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
-        }
-
-        String token = jwtUtil.generateToken(user.getEmail());
-        
-        // Fix: Convert Enum to String for response
-        return new JwtResponse(token, user.getEmail(), user.getRole().toString());
+    public ResponseEntity<JwtResponse> login(@RequestBody LoginRequest req) {
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
+        User u = userService.findByEmail(req.getEmail());
+        String token = jwtUtil.generateToken(u.getId(), u.getEmail(), u.getRole());
+        return ResponseEntity.ok(new JwtResponse(token, u.getEmail(), u.getRole()));
     }
 }
