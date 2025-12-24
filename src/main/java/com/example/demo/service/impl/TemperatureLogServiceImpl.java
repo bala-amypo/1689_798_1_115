@@ -8,13 +8,19 @@ import java.util.List;
 
 @Service
 public class TemperatureLogServiceImpl implements TemperatureLogService {
-    private final TemperatureSensorLogRepository repo;
+    private final TemperatureSensorLogRepository repository;
 
-    public TemperatureLogServiceImpl(TemperatureSensorLogRepository repo) { this.repo = repo; }
+    public TemperatureLogServiceImpl(TemperatureSensorLogRepository repository) {
+        this.repository = repository;
+    }
 
     @Override
-    public TemperatureSensorLog recordLog(TemperatureSensorLog log) { return repo.save(log); }
+    public TemperatureSensorLog recordLog(TemperatureSensorLog log) {
+        return repository.save(log);
+    }
 
     @Override
-    public List<TemperatureSensorLog> getLogsByShipment(Long id) { return repo.findByShipmentId(id); }
+    public List<TemperatureSensorLog> getLogsByShipment(Long shipmentId) {
+        return repository.findByShipmentId(shipmentId);
+    }
 }
