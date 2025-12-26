@@ -1,73 +1,54 @@
-package com.example.demo.config;
+package com.example.demo.security;
 
-import com.example.demo.security.JwtAuthenticationFilter;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.List;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import java.io.IOException;
+import java.util.Collections;
 
-@Configuration
-public class SecurityConfig {
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtAuthenticationFilter jwtFilter;
+    private final JwtUtil jwtUtil;
+    // Note: We use a simplified UserDetailsService here or standard setup. 
+    // For this specific error, we just need to ensure the filter exists so the Config loads.
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+        final String authHeader = request.getHeader("Authorization");
+        String username = null;
+        String jwt = null;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            // 🚫 Disable CSRF (This is the #1 reason for 403 on POST requests)
-            .csrf(csrf -> csrf.disable())
-            
-            // 🌍 Enable CORS so Swagger doesn't get blocked
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            
-            // 🛑 Stateless session (because we use JWT)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
-            // 🚦 The Rules:
-            .authorizeHttpRequests(auth -> auth
-                // OPEN GATES: Allow auth, swagger, and simple-status
-                .requestMatchers("/auth/**", "/simple-status", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // GUARDED GATES: Everything else needs a token
-                .requestMatchers("/api/**").authenticated()
-            )
-            
-            // 🛡️ Add our JWT Filter
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-        
-        return http.build();
-    }
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwt = authHeader.substring(7);
+            try {
+                username = jwtUtil.extractEmail(jwt);
+            } catch (Exception e) {
+                // Token invalid or expired
+            }
+        }
 
-    @Bean
-    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (jwtUtil.validateToken(jwt)) {
+                // If token is valid, set the authentication in the context
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        username, null, Collections.emptyList()); // Add authorities if needed
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+        }
+        chain.doFilter(request, response);
     }
 }
